@@ -24,7 +24,7 @@ description = "Pytorch modeling easier"
 keywords = ["pytorch", "debug", "tensor"]
 name = "drtensor"
 readme = "README.md"
-version = "0.0.1"
+version = "0.0.2"
 
 [project.urls]
 homepage = "https://github.com/raynardj/drtensor"
