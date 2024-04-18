@@ -1,0 +1,31 @@
+
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools", "wheel"]
+
+[project]
+authors = [
+  {name = "raynardj", email = "b2ray2c@gmail.com"},
+]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Programming Language :: Python :: 3.6",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = []
+description = "Pytorch modeling easier"
+keywords = ["pytorch", "debug", "tensor"]
+name = "drtensor"
+readme = "README.md"
+version = "0.0.1"
+
+[project.urls]
+homepage = "https://github.com/raynardj/drtensor"
+repository = "https://github.com/raynardj/drtensor"
