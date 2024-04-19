@@ -1,6 +1,7 @@
-from typing import Any, Dict
+from typing import Any, Callable, Dict
 import json
 
+from proto import module
 from torch import nn
 
 from .figures import ModuleFigure, TensorFigure
@@ -76,22 +77,25 @@ class DrTensor:
         tensor_encounters = dict()
         module_encounters = dict()
 
-        tree_save = build_tensor_save_tree(tensor_data_dict, tensor_figure_dict)
+        tree_save_tensor: Callable = build_tensor_save_tree(tensor_data_dict, tensor_figure_dict)
         for module_name, module_figure in self.module_map.items():
             module_figure_dict[module_figure.uuid] = module_figure
             module_data_dict[module_figure.uuid] = module_figure.to_dict()
 
             for encounter in module_figure.encounters:
-                tree_save(encounter)
+                tree_save_tensor(encounter)
 
+            # module_figure with the parent
             if module_figure.parent is not None:
                 module_to_parent[module_figure.uuid] = module_figure.parent.uuid
 
+            # module_figure with the children
             if len(module_figure.children) > 0:
                 module_to_children[module_child.uuid] = []
                 for module_child in module_figure.children:
                     module_to_children[module_child.uuid].append(module_child.uuid)
 
+        # save tensor's encounters with modules
         for tensor_uuid, tensor_figure in tensor_figure_dict.items():
             if len(tensor_figure.encounters) > 0:
                 tensor_encounters[tensor_uuid] = []
@@ -103,11 +107,24 @@ class DrTensor:
                         }
                     )
 
+        # save module's encounters with tensors
         for module_uuid, module_figure in module_figure_dict.items():
             if len(module_figure.encounters) > 0:
                 module_encounters[module_uuid] = []
                 for encounter_dict in module_figure.encounters:
                     module_encounters[module_uuid].append(tree_tensor_uuid(encounter_dict))
+
+        # save log
+        log = []
+        for log_dict in self.log:
+            log_save_dict = dict(
+                args=tree_tensor_uuid(log_dict["args"]),
+                output=tree_tensor_uuid(log_dict["output"]),
+                kwargs=tree_tensor_uuid(log_dict["kwargs"]),
+                module_uuid=log_dict["module"].uuid,
+                name=log_dict["name"],
+            )
+            log.append(log_save_dict)
 
         return dict(
             modules=module_data_dict,
@@ -116,6 +133,7 @@ class DrTensor:
             module_to_children=module_to_children,
             tensor_encounters=tensor_encounters,
             module_encounters=module_encounters,
+            log=log,
         )
 
     @classmethod
@@ -152,7 +170,7 @@ class DrTensor:
                     }
                 )
 
-        tree_get_tensor_figure = build_tree_get_tensor_figure(tensor_figure_dict)
+        tree_get_tensor_figure: Callable = build_tree_get_tensor_figure(tensor_figure_dict)
 
         for module_uuid, encounters in data["module_encounters"].items():
             module_figure = module_figure_dict[module_uuid]
@@ -160,6 +178,16 @@ class DrTensor:
                 io_figure = tree_get_tensor_figure(encounter)
                 module_figure.encounters.append(io_figure)
 
+        # recover log
+        for log_dict in data["log"]:
+            log_entry = dict(
+                args=tree_get_tensor_figure(log_dict["args"]),
+                output=tree_get_tensor_figure(log_dict["output"]),
+                kwargs=tree_get_tensor_figure(log_dict["kwargs"]),
+                module=module_figure_dict[log_dict["module_uuid"]],
+                name=log_dict["name"],
+            )
+            obj.log.append(log_entry)
         return obj
 
     @classmethod
