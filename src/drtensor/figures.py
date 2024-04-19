@@ -1,7 +1,10 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
+from uuid import uuid4
 
 import torch
 from torch import nn
+
+from .utils import tree_to_string
 
 
 class TensorFigure:
@@ -12,16 +15,21 @@ class TensorFigure:
 
     def __init__(
         self,
-        shape: Optional[Tuple[int, ...]],
+        shape: Optional[List[int]],
         dtype: Optional[str],
         device: Optional[str],
         is_parameter: bool = False,
+        uuid: Optional[str] = None,
     ):
         self.shape = list(shape) if shape is not None else None
         self.dtype: Optional[str] = str(dtype) if dtype is not None else None
         self.device: Optional[str] = str(device) if device is not None else None
         self.encounters: List[Dict[str, Any]] = []
         self.is_parameter = is_parameter
+        if uuid is None:
+            self.uuid: str = str(uuid4())
+        else:
+            self.uuid: str = uuid
 
     @property
     def shape_print(self):
@@ -55,11 +63,24 @@ class TensorFigure:
         if tensor is None:
             return cls(shape=None, dtype=None, device=None)
         return cls(
-            shape=tuple(list(tensor.shape)),
+            shape=list(tensor.shape),
             dtype=str(tensor.dtype),
             device=str(tensor.device),
             is_parameter=isinstance(tensor, torch.nn.Parameter),
         )
+
+    def to_dict(self):
+        return dict(
+            shape=self.shape,
+            dtype=self.dtype,
+            device=self.device,
+            is_parameter=self.is_parameter,
+            uuid=self.uuid,
+        )
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]):
+        return cls(**data)
 
 
 class ModuleFigure:
@@ -77,16 +98,21 @@ class ModuleFigure:
         class_name: str,
         annotations: Dict[str, Any],
         weights: Dict[str, TensorFigure],
-        module: nn.Module,
+        module: Optional[nn.Module] = None,
+        uuid: Optional[str] = None,
     ):
-        self.name = name
-        self.class_name = class_name
+        self.name: str = name
+        self.class_name: str = class_name
         self.annotations = annotations
         self.weights = weights
         self.encounters: List[Dict[str, Any]] = []
         self.children: List[ModuleFigure] = []
         self.parent = None
-        self.module = module
+        self.module: Optional[nn.Module] = module
+        if uuid is None:
+            self.uuid = str(uuid4())
+        else:
+            self.uuid = uuid
 
     def __repr__(self):
         return f"🎲 {self.name} ({self.class_name}), weights: {self.weights}"
@@ -103,7 +129,27 @@ class ModuleFigure:
         return cls(
             name=name,
             class_name=module.__class__.__name__,
-            annotations=module.forward.__annotations__,
+            annotations=tree_to_string(module.forward.__annotations__),
             weights=weights_map,
             module=module,
+        )
+
+    def to_dict(self):
+        return dict(
+            name=self.name,
+            class_name=self.class_name,
+            annotations=self.annotations,
+            weights={k: v.to_dict() for k, v in self.weights.items()},
+            uuid=self.uuid,
+        )
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]):
+        return cls(
+            name=data["name"],
+            class_name=data["class_name"],
+            annotations=data["annotations"],
+            weights={k: TensorFigure.from_dict(v) for k, v in data["weights"].items()},
+            module=None,
+            uuid=data["uuid"],
         )

@@ -19,3 +19,6 @@ def apply_tree(callback: Callable):
             return callback(tree)
 
     return apply_tree_fn
+
+
+tree_to_string: Callable = apply_tree(str)

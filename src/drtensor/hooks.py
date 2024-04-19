@@ -4,8 +4,24 @@ from .figures import ModuleFigure, TensorFigure
 from .utils import apply_tree
 
 
+def build_tensor_save_tree(module_figure: ModuleFigure, tensor_type: str):
+    def save_(tensor):
+        tensor_figure = TensorFigure.from_tensor(tensor)
+        tensor_figure.encounters.append(
+            {
+                "module": module_figure,
+                "tensor_type": tensor_type,
+            }
+        )
+        return tensor_figure
+
+    tree_save = apply_tree(save_)
+    tree_save.__name__ = f"save_{tensor_type}"
+    return tree_save
+
+
 # tree version of TensorFigure.from_tensor
-tree_build_tensor_figure: Callable = apply_tree(TensorFigure.from_tensor)
+# tree_build_tensor_figure: Callable = apply_tree(TensorFigure.from_tensor)
 
 
 class RecordingHandler:
@@ -26,11 +42,12 @@ class RecordingHandler:
 
     def __call__(self, module, input, kwargs, output):
         io_figure = dict(
-            args=tree_build_tensor_figure(input),
-            output=tree_build_tensor_figure(output),
-            kwargs=tree_build_tensor_figure(kwargs),
+            args=build_tensor_save_tree(self.module_figure, "args")(input),
+            output=build_tensor_save_tree(self.module_figure, "output")(output),
+            kwargs=build_tensor_save_tree(self.module_figure, "kwargs")(kwargs),
         )
         self.module_figure.encounters.append(io_figure)
+
         self.log.append(
             dict(
                 name=self.module_figure.name,
